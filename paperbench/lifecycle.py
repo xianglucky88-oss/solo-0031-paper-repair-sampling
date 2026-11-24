@@ -1,4 +1,4 @@
-from . import events, patches, placement, records, trials, zones
+from . import documents, events, patches, placement, records, trials, zones
 from .errors import Problem
 from .validation import fields, identifier, text
 
@@ -23,7 +23,18 @@ OPERATIONS = {'trial': trials.start, 'observe': trials.observe, 'patch': patches
               'finish': finish, 'reopen': reopen}
 
 
+def adopt(db, doc, request):
+    """Switch the document to a registered rule starting at this live version."""
+    fields(request, 'expected', 'data')
+    events.guard(db, doc['id'], request['expected'])
+    result = documents.adopt(db, doc, request['data'], request['expected'] + 1)
+    version = events.append(db, doc['id'], request['expected'], 'adopt', {'result': result})
+    return {'version': version, 'result': result}
+
+
 def change(db, doc, action, request):
+    if action == 'adopt':
+        return adopt(db, doc, request)
     if action == 'zone':
         fields(request, 'expected', 'data')
     else:

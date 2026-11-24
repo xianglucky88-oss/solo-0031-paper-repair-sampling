@@ -9,5 +9,7 @@ def compare(old, new):
         a, b = before.get(key), after.get(key)
         if a != b:
             kind = 'added' if a is None else 'removed' if b is None else 'changed'
-            changes.append({'kind': kind, 'before': a, 'after': b})
+            changes.append({'kind': kind, 'before': a, 'after': b,
+                            'rule_before': a['rule'] if a else None,
+                            'rule_after': b['rule'] if b else None})
     return changes

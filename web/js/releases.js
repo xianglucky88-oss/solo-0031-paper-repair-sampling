@@ -3,7 +3,7 @@ import {details, el, json, list, section} from './dom.js';
 import {action, choice, form} from './fields.js';
 
 const actionNames = {zone: '登记损坏区', trial: '切取样片', observe: '登记观察',
-  patch: '贴放补片', finish: '完工', reopen: '复开'};
+  patch: '贴放补片', finish: '完工', reopen: '复开', adopt: '采用新规范'};
 
 function download(url, label) {
   const link = el('a', label, 'download');
@@ -31,7 +31,10 @@ export function releasePane({board, run, save, inspect}) {
   const timeline = el('div');
   const getEvents = action('读取现场事件', run, async () => {
     const rows = await inspect(['events']);
-    timeline.replaceChildren(...rows.map(row => details(`v${row.version} · ${actionNames[row.action]} · ${row.facts.zone}`, json(row.facts.result))));
+    timeline.replaceChildren(...rows.map(row => details(
+      `v${row.version} · ${actionNames[row.action] || row.action}` + (row.facts.zone ? ` · ${row.facts.zone}` : '')
+        + (row.action === 'adopt' ? ` · ${row.facts.result.previous} → ${row.facts.result.rule}` : ''),
+      json(row.facts.result))));
     return `已读取 ${rows.length} 条事件`;
   });
   const result = [ledger, section('现场溯源', getEvents, timeline)];
@@ -42,7 +45,7 @@ export function releasePane({board, run, save, inspect}) {
       '比较两版', run, async values => {
         const comparison = await inspect(['compare', values.old, values.next]);
         const name = {added:'增加', removed:'移除', changed:'更换证据'};
-        const describe = row => row ? `${row.patch}/${row.sheet}/${row.face}/${row.turn}° · 裁切 (${row.cut.join(', ')})` : '无';
+        const describe = row => row ? `${row.patch}/${row.sheet}/${row.face}/${row.turn}° · ${row.rule} · 裁切 (${row.cut.join(', ')})` : '无';
         diff.replaceChildren(list(comparison.changes, r => {
           const row = r.after || r.before;
           return [`${name[r.kind]}：${row.zone} · 贴放 (${row.destination.join(', ')})`, `${describe(r.before)} → ${describe(r.after)}`];

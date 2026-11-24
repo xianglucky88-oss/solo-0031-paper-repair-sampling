@@ -39,8 +39,9 @@ def document_route(db, doc, method, tail, body):
             zone = records.get(db, 'zone', identifier(body['zone']), doc['id'])
             selected = compatibility.selection(body['selection'])
             sheet = sheets.available(db, selected['sheet'])
-            return compatibility.evaluate(zone, sheet, selected['face'], selected['turn'], doc['rule'])
-        case 'POST', [action] if action == 'zone' or action in lifecycle.OPERATIONS:
+            return compatibility.evaluate(zone, sheet, selected['face'], selected['turn'],
+                                          documents.current_rule(doc))
+        case 'POST', [action] if action == 'zone' or action == 'adopt' or action in lifecycle.OPERATIONS:
             return lifecycle.change(db, doc, action, body)
         case 'POST', ['releases']:
             return archive.seal(db, doc, body)
