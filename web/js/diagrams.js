@@ -46,9 +46,11 @@ export function sheetMap(view, sheetPicker) {
     empty.append(el('h3', '实物纸页裁切图'), el('p', '尚未登记纸页', 'dim'));
     return empty;
   }
-  const {sheet, lot, cuts} = view;
+  const {sheet, lot, cuts, quota_used, quota_remaining} = view;
+  const cutClass = kind => kind === 'trial' ? 'sample' : kind === 'prep' ? 'prep' : 'patch';
   return figure(`裁切台 · ${sheet.id}`, [sheet.width, sheet.height],
-    `${sheet.width} × ${sheet.height} mm · ${lot.active ? '启用' : '已停用'} · 橙：样片 · 绿：补片`,
-    cuts.map(c => rectangle(c.cut, c.kind === 'trial' ? 'sample' : 'patch', `${c.document} / ${c.id}`)),
-    sheetPicker, list(cuts, c => [`${c.id} · 取纸 (${c.cut.join(', ')})`, `${c.document}/${c.zone} · 第 ${c.revision} 修订`]));
+    `${sheet.width} × ${sheet.height} mm · ${lot.active ? '启用' : '已停用'} · 取纸笔数 ${quota_used}/${sheet.quota}（剩 ${quota_remaining}）`,
+    cuts.map(c => rectangle(c.cut, cutClass(c.kind), `${c.document} / ${c.id}`)),
+    sheetPicker, list(cuts, c => [`${c.id} · 取纸 (${c.cut.join(', ')})`,
+      `${c.document}/${c.zone} · 第 ${c.revision} 修订 · ${c.kind === 'prep' ? '备料' : c.kind === 'trial' ? '试补' : '补片'}`]));
 }

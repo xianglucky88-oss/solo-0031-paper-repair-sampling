@@ -77,7 +77,8 @@ function render() {
     async value => { await refresh(doc, zone?.id, value); return `已读取 ${value} 裁切记录`; });
   const inspect = (tail, body) => request(['documents', doc, ...tail], body);
   const write = (name, data, text) => save(['documents', doc, name], {expected: board.version, zone: zone.id, data}, text);
-  content.replaceChildren(...panes[current]({...state, run, save, write, inspect, sheetPicker}));
+  const writeGroup = (name, data, text) => save(['documents', doc, name], {expected: board.version, data}, text);
+  content.replaceChildren(...panes[current]({...state, run, save, write, writeGroup, inspect, sheetPicker}));
 }
 
 for (const button of nav) button.addEventListener('click', () => {

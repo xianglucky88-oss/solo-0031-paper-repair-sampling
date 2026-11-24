@@ -1,7 +1,8 @@
 import csv
 from io import StringIO
 
-CSV_FIELDS = ('zone', 'revision', 'patch', 'trial', 'sheet', 'lot', 'face', 'turn', 'cut', 'destination', 'rule')
+CSV_FIELDS = ('zone', 'revision', 'patch', 'kind', 'trial', 'sheet', 'lot', 'face', 'turn',
+              'cut', 'destination', 'receipt', 'rule')
 
 
 def cutting_csv(rows):

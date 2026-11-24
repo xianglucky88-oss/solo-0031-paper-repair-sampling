@@ -3,16 +3,20 @@ from .errors import Problem
 from .rectangles import MAX_COORD
 from .validation import fields, identifier, integer
 
+DEFAULT_QUOTA = 512
+
 
 def register(db, value):
-    fields(value, 'id', 'lot', 'width', 'height', 'stock', 'faces')
+    fields(value, 'id', 'lot', 'width', 'height', 'stock', 'faces', *(['quota'] if 'quota' in value else ()))
     key, lot = identifier(value['id']), identifier(value['lot'])
     if not records.get(db, 'lot', lot)['active']:
         raise Problem('纸样批次已停用', 409)
     faces = fields(value['faces'], 'front', 'back')
+    quota = integer(value['quota'], 1, DEFAULT_QUOTA, '取纸笔数') if 'quota' in value else DEFAULT_QUOTA
     return records.put(db, 'sheet', key, {
         'id': key, 'lot': lot, 'width': integer(value['width'], 1, MAX_COORD, '纸页宽'),
         'height': integer(value['height'], 1, MAX_COORD, '纸页高'),
+        'quota': quota,
         'stock': measurements.stock(value['stock']),
         'faces': {face: measurements.surface(measurement) for face, measurement in faces.items()},
     })

@@ -13,3 +13,8 @@ def reserve(db, sheet, allocation):
     if any(overlaps(cut, row['cut']) for row in existing):
         raise Problem('裁切区与已切取区域重叠（正反面共用同一张纸）', 409)
     return records.put(db, 'cut', allocation['key'], allocation, sheet['id'])
+
+
+def release(db, allocation):
+    """撤销承诺或未动刀交回时释放源纸占位；已裁位置永不释放。"""
+    db.execute('DELETE FROM records WHERE kind=? AND id=?', ('cut', allocation['key']))

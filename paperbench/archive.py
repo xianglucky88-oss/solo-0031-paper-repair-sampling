@@ -15,15 +15,20 @@ def seal(db, doc, body):
     if existing:
         return summary(existing)
     trials = records.listing(db, 'trial', doc['id'])
+    prep_groups = records.listing(db, 'prep_group', doc['id'])
     sheets = {}
     for zone in zones:
         zone['patches'] = patches.current(db, doc, zone)
         zone['trials'] = [t for t in trials if (t['zone'], t['revision']) == (zone['id'], zone['revision'])]
         for trial in zone['trials']:
-            key = trial['selection']['sheet']
-            if key not in sheets:
-                sheets[key] = records.get(db, 'sheet', key)
-    inputs = {'document': doc, 'version': expected, 'zones': zones, 'sheets': sheets}
+            sheets.setdefault(trial['selection']['sheet'],
+                              records.get(db, 'sheet', trial['selection']['sheet']))
+    for group in prep_groups:
+        for slot in group['slots']:
+            sheets.setdefault(slot['selection']['sheet'],
+                              records.get(db, 'sheet', slot['selection']['sheet']))
+    inputs = {'document': doc, 'version': expected, 'zones': zones,
+              'prep_groups': prep_groups, 'sheets': sheets}
     payload = {'format': 1, 'inputs': inputs, 'manifest': replay.reconstruct(inputs)}
     release = {**payload, 'sha256': digest(payload)}
     records.put(db, 'release', str(expected), release, doc['id'])

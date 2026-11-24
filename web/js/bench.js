@@ -2,6 +2,7 @@ import {artifactMap, sheetMap} from './diagrams.js';
 import {details, el, section} from './dom.js';
 import {action, choice, field, form, integers, options} from './fields.js';
 import {stock, stockFields, surface, surfaceFields} from './measurements.js';
+import {prepSection} from './prep.js';
 import {trialSection} from './trials.js';
 
 export function benchPane(ctx) {
@@ -36,5 +37,5 @@ export function benchPane(ctx) {
   }
   const lower = el('div', '', 'split');
   lower.append(trialSection(ctx, zone), place);
-  return [maps, zoneInfo, lower];
+  return [maps, zoneInfo, prepSection(ctx), lower];
 }
