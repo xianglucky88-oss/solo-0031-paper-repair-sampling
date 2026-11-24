@@ -37,7 +37,8 @@ export function artifactMap(board, active) {
   const patches = zones.flatMap(zone => zone.patches);
   return figure('藏品贴放图', [doc.width, doc.height], `${doc.width} × ${doc.height} mm · 橙：待补区 · 绿：补片或完工区`,
     [...zonesDrawn, ...patches.map(p => rectangle(p.destination, 'patch', `补片 ${p.id}`))],
-    list(patches, p => [`${p.id} · 贴放 (${p.destination.join(', ')})`, `${p.zone} · 第 ${p.revision} 修订 · 试补 ${p.trial}`]));
+    list(patches, p => [`${p.id} · 贴放 (${p.destination.join(', ')})`,
+      `${p.zone} · 第 ${p.revision} 修订 · 试补 ${p.trial}${p.whole ? ' · 整块试样' : ''}`]));
 }
 
 export function sheetMap(view, sheetPicker) {
@@ -49,6 +50,8 @@ export function sheetMap(view, sheetPicker) {
   const {sheet, lot, cuts} = view;
   return figure(`裁切台 · ${sheet.id}`, [sheet.width, sheet.height],
     `${sheet.width} × ${sheet.height} mm · ${lot.active ? '启用' : '已停用'} · 橙：样片 · 绿：补片`,
-    cuts.map(c => rectangle(c.cut, c.kind === 'trial' ? 'sample' : 'patch', `${c.document} / ${c.id}`)),
-    sheetPicker, list(cuts, c => [`${c.id} · 取纸 (${c.cut.join(', ')})`, `${c.document}/${c.zone} · 第 ${c.revision} 修订`]));
+    cuts.map(c => rectangle(c.cut, c.kind === 'trial' ? 'sample' : 'patch',
+      `${c.document} / ${c.id}${c.whole_patch ? ` · 已整块贴用为 ${c.whole_patch}` : ''}`)),
+    sheetPicker, list(cuts, c => [`${c.id} · 取纸 (${c.cut.join(', ')})`,
+      `${c.document}/${c.zone} · 第 ${c.revision} 修订${c.whole_patch ? ` · 整块贴用 ${c.whole_patch}` : ''}`]));
 }

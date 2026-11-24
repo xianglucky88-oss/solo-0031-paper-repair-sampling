@@ -3,7 +3,7 @@ import {details, el, json, list, section} from './dom.js';
 import {action, choice, form} from './fields.js';
 
 const actionNames = {zone: '登记损坏区', trial: '切取样片', observe: '登记观察',
-  patch: '贴放补片', finish: '完工', reopen: '复开'};
+  patch: '贴放补片', mount: '整块贴用试样', finish: '完工', reopen: '复开'};
 
 function download(url, label) {
   const link = el('a', label, 'download');
@@ -42,7 +42,7 @@ export function releasePane({board, run, save, inspect}) {
       '比较两版', run, async values => {
         const comparison = await inspect(['compare', values.old, values.next]);
         const name = {added:'增加', removed:'移除', changed:'更换证据'};
-        const describe = row => row ? `${row.patch}/${row.sheet}/${row.face}/${row.turn}° · 裁切 (${row.cut.join(', ')})` : '无';
+        const describe = row => row ? `${row.patch}/${row.sheet}/${row.face}/${row.turn}° · 裁切 (${row.cut.join(', ')})${row.whole ? ' · 整块试样' : ''}` : '无';
         diff.replaceChildren(list(comparison.changes, r => {
           const row = r.after || r.before;
           return [`${name[r.kind]}：${row.zone} · 贴放 (${row.destination.join(', ')})`, `${describe(r.before)} → ${describe(r.after)}`];

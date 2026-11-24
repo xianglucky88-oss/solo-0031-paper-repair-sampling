@@ -26,7 +26,7 @@ export function trialSection(ctx, zone) {
   });
   const histories = zone.trials.map(trial => {
     const rows = list(trial.rows, r => [`${r.hour} h · 漂移 ${r.drift / 10} · ${r.lifting ? '翘边' : '未翘边'}`, r.note]);
-    const summary = `${trial.id} · ${trial.selection.sheet} · ${trial.selection.face === 'front' ? '正面' : '反面'} · ${trial.selection.turn}° · ${disposition[trial.status]}`;
+    const summary = `${trial.id} · ${trial.selection.sheet} · ${trial.selection.face === 'front' ? '正面' : '反面'} · ${trial.selection.turn}° · ${disposition[trial.status]}${trial.used ? ' · 已整块贴用' : ''}`;
     const block = details(summary, rows);
     if (!zone.complete && trial.status === 'pending') {
       block.open = true;

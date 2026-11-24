@@ -20,6 +20,7 @@ def reopen(db, doc, zone, value):
 
 
 OPERATIONS = {'trial': trials.start, 'observe': trials.observe, 'patch': patches.add,
+              'mount': patches.mount, 'whole': patches.whole, 'place': patches.place,
               'finish': finish, 'reopen': reopen}
 
 

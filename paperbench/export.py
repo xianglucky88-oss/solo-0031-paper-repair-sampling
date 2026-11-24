@@ -6,7 +6,7 @@ CSV_FIELDS = ('zone', 'revision', 'patch', 'trial', 'sheet', 'lot', 'face', 'tur
 
 def cutting_csv(rows):
     output = StringIO(newline='')
-    writer = csv.DictWriter(output, CSV_FIELDS, lineterminator='\n')
+    writer = csv.DictWriter(output, CSV_FIELDS, lineterminator='\n', extrasaction='ignore')
     writer.writeheader()
     for row in rows:
         writer.writerow({**row, **{key: ' '.join(map(str, row[key])) for key in ('cut', 'destination')}})
