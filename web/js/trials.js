@@ -5,7 +5,25 @@ const faces = [['front', '正面'], ['back', '反面']];
 const turns = [['0', '0°'], ['90', '90°']];
 const disposition = {pending: '待观察', accepted: '合格', failed: '不合格'};
 const criteria = {thickness: '厚度', ph: 'pH', grain: '纤维', condition: '测量条件', color: '色差'};
+const colorVerdicts = {
+  pass: '换算保证合格', fail: '明确超限', conflict: '依据冲突',
+  inconclusive: '证据不足', incomparable: '条件不可比',
+};
 const selected = values => ({sheet: values.sheet, face: values.face, turn: Number(values.turn)});
+
+function colorLines(colorResult) {
+  if (!colorResult) return [];
+  if (colorResult.basis === 'same_condition') {
+    return [el('p', `同条件直接比较 · 色差 ${colorResult.distance.toFixed(2)} · ${
+      colorResult.verdict === 'pass' ? '合格' : '超限'}`, 'dim')];
+  }
+  const head = el('p', `异条件换算 · ${colorVerdicts[colorResult.verdict] ?? colorResult.verdict}`, 'dim');
+  const items = list(colorResult.bases, basis => [
+    `${basis.id} r${basis.version} · 换算色差 ${basis.converted_distance.toFixed(2)} · 最大误差 ${basis.max_error}`,
+    `生效于现场 v${basis.effective_at} · ${colorVerdicts[basis.verdict] ?? basis.verdict}`,
+  ]);
+  return [head, items];
+}
 
 export function trialSection(ctx, zone) {
   const {board, catalog, write, inspect, run, sheet} = ctx;
@@ -14,20 +32,21 @@ export function trialSection(ctx, zone) {
   const sheetChoice = available.some(row => row.id === sheet?.sheet.id) ? sheet.sheet.id : undefined;
   const picks = [choice('sheet', '实物纸页', options(available), sheetChoice),
     choice('face', '纸面', faces), choice('turn', '旋转', turns)];
-  const result = el('p', '', 'readout');
+  const result = el('div');
   result.hidden = true;
   result.setAttribute('aria-live', 'polite');
   const preview = form(picks, '预检面向', run, async values => {
     const data = await inspect(['preview'], {zone: zone.id, selection: selected(values)});
-    result.textContent = Object.entries(data.checks).map(([key, value]) =>
-      `${criteria[key]}：${value === null ? '不可比较' : value ? '合格' : '不合格'}`).join(' · ');
+    const checks = el('p', Object.entries(data.checks).map(([key, value]) =>
+      `${criteria[key]}：${value === null ? '不可比较' : value ? '合格' : '不合格'}`).join(' · '), 'readout');
+    result.replaceChildren(checks, ...colorLines(data.color_result));
     result.hidden = false;
     return data.compatible ? '该面向通过适配评估' : '该面向未通过适配评估';
   });
   const histories = zone.trials.map(trial => {
     const rows = list(trial.rows, r => [`${r.hour} h · 漂移 ${r.drift / 10} · ${r.lifting ? '翘边' : '未翘边'}`, r.note]);
     const summary = `${trial.id} · ${trial.selection.sheet} · ${trial.selection.face === 'front' ? '正面' : '反面'} · ${trial.selection.turn}° · ${disposition[trial.status]}`;
-    const block = details(summary, rows);
+    const block = details(summary, ...colorLines(trial.color_basis), rows);
     if (!zone.complete && trial.status === 'pending') {
       block.open = true;
       const hour = board.document.rule.hours[trial.rows.length];

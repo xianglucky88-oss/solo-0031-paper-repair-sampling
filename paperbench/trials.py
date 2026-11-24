@@ -1,4 +1,4 @@
-from . import compatibility, inventory, observations, records, sheets
+from . import compatibility, events, handovers, inventory, observations, records, sheets
 from .errors import Problem
 from .rectangles import rectangle, size
 from .validation import fields, identifier
@@ -11,7 +11,10 @@ def start(db, doc, zone, value):
         raise Problem('试补编号已使用', 409)
     selected = compatibility.selection(value['selection'])
     sheet = sheets.available(db, selected['sheet'])
-    check = compatibility.evaluate(zone, sheet, selected['face'], selected['turn'], doc['rule'])
+    opened_at = events.version(db, doc['id'])
+    handover_list = handovers.all_handovers(db)
+    check = compatibility.evaluate(zone, sheet, selected['face'], selected['turn'], doc['rule'],
+                                   handover_list, opened_at)
     if not check['compatible']:
         raise Problem('所选纸面或旋转未通过适配评估')
     cut = rectangle(value['cut'])
@@ -21,7 +24,8 @@ def start(db, doc, zone, value):
                       revision=zone['revision'], kind='trial', id=key, cut=cut)
     inventory.reserve(db, sheet, allocation)
     trial = dict(id=key, zone=zone['id'], revision=zone['revision'], selection=selected,
-                 allocation=allocation, rows=[], status='pending')
+                 allocation=allocation, rows=[], status='pending', opened_at=opened_at,
+                 color_basis=check['color_result'])
     return records.put(db, 'trial', key, trial, doc['id'])
 
 

@@ -84,6 +84,9 @@ def exercise(b):
     stocks = [body for path, body in demo.requests() if path == 'sheets']
     for stock in stocks:
         b.api('sheets', stock)
+    handover = next(body for path, body in demo.requests() if path == 'handovers')
+    b.api('handovers', handover)
+    check(b.api('catalog')['handovers'][0]['id'] == handover['id'], 'handover is catalogued')
     check(b.api(SHEET)['cuts'] == [], 'no initial reservations')
     b.api('sheets', {**stocks[0], 'width': 70}, 409)
     if b.stage('stock'): return
@@ -93,7 +96,12 @@ def exercise(b):
     def preview(**changes):
         return b.api(f'{DOC}/preview', {'zone': ZONE, 'selection': {**selected, **changes}})
     check(preview()['compatible'], 'matching face and rotation')
-    check(preview(face='back')['checks']['color'] is None, 'different condition is not comparable')
+    back_now = preview(face='back')
+    check(back_now['checks']['color'] and back_now['color_result']['verdict'] == 'pass'
+          and back_now['color_result']['bases'][0]['id'] == 'HV-1', 'applicable handover converts cross-condition color')
+    back_then = b.api(f'{DOC}/preview', {'zone': ZONE, 'at': 0, 'selection': {**selected, 'face': 'back'}})
+    check(back_then['checks']['color'] and back_then['color_result']['verdict'] == 'pass',
+          'handover effective from the initial version applies at v0')
     check(preview(face='back', sheet='KOZO-4B', turn=0)['checks']['color'] is False, 'same condition can still fail Lab')
     check(not preview(turn=0)['checks']['grain'], 'unrotated grain mismatch')
     check(b.api(DOC)['version'] == 1 and not b.api(SHEET)['cuts'], 'preview is read-only')

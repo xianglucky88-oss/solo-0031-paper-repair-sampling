@@ -2,7 +2,8 @@ from . import archive, events, patches, placement, records
 
 
 def catalog(db):
-    return {kind + 's': records.listing(db, kind) for kind in ('document', 'rule', 'lot', 'sheet')}
+    return {kind + 's': records.listing(db, kind)
+            for kind in ('document', 'rule', 'lot', 'sheet', 'handover')}
 
 
 def board(db, doc):

@@ -1,10 +1,11 @@
 from . import (archive, comparison, compatibility, documents, events, export,
-               lifecycle, materials, records, rules, sheets, workbench)
+               handovers, lifecycle, materials, records, rules, sheets, workbench)
 from .errors import Problem
-from .validation import fields, identifier
+from .validation import fields, identifier, integer
 
 REGISTRATION = {'rules': rules.register, 'documents': documents.register,
-                'lots': materials.register, 'sheets': sheets.register, 'retire': materials.retire}
+                'lots': materials.register, 'sheets': sheets.register,
+                'handovers': handovers.register, 'retire': materials.retire}
 
 
 def version_token(value):
@@ -35,11 +36,15 @@ def document_route(db, doc, method, tail, body):
         case 'GET', ['events']:
             return events.history(db, doc['id'])
         case 'POST', ['preview']:
-            fields(body, 'zone', 'selection')
+            fields(body, 'zone', 'selection', *(['at'] if 'at' in body else ()))
             zone = records.get(db, 'zone', identifier(body['zone']), doc['id'])
             selected = compatibility.selection(body['selection'])
             sheet = sheets.available(db, selected['sheet'])
-            return compatibility.evaluate(zone, sheet, selected['face'], selected['turn'], doc['rule'])
+            # 预检以当前现场版本为时点，读取此刻实际生效的交接单；不写状态。
+            opened_at = integer(body['at'], 0, 2 ** 53 - 1, '开样时点') if 'at' in body \
+                else events.version(db, doc['id'])
+            return compatibility.evaluate(zone, sheet, selected['face'], selected['turn'],
+                                          doc['rule'], handovers.all_handovers(db), opened_at)
         case 'POST', [action] if action == 'zone' or action in lifecycle.OPERATIONS:
             return lifecycle.change(db, doc, action, body)
         case 'POST', ['releases']:

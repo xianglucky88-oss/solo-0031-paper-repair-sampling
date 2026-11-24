@@ -1,7 +1,9 @@
-from . import events, patches, records, replay
+from . import events, handovers, patches, records, replay
 from .codec import digest
 from .errors import Problem
 from .validation import fields, integer
+
+FORMAT = 2
 
 
 def seal(db, doc, body):
@@ -23,8 +25,10 @@ def seal(db, doc, body):
             key = trial['selection']['sheet']
             if key not in sheets:
                 sheets[key] = records.get(db, 'sheet', key)
-    inputs = {'document': doc, 'version': expected, 'zones': zones, 'sheets': sheets}
-    payload = {'format': 1, 'inputs': inputs, 'manifest': replay.reconstruct(inputs)}
+    # 签件内含全部交接单，接手人无需另查现场即可独立确认每件试样开样时的适用单。
+    inputs = {'document': doc, 'version': expected, 'zones': zones, 'sheets': sheets,
+              'handovers': handovers.all_handovers(db), 'format': FORMAT}
+    payload = {'format': FORMAT, 'inputs': inputs, 'manifest': replay.reconstruct(inputs)}
     release = {**payload, 'sha256': digest(payload)}
     records.put(db, 'release', str(expected), release, doc['id'])
     return summary(release)
@@ -32,7 +36,7 @@ def seal(db, doc, body):
 
 def verify(release):
     payload = {key: value for key, value in release.items() if key != 'sha256'}
-    if release['format'] != 1 or digest(payload) != release['sha256']:
+    if release['format'] not in (1, 2) or digest(payload) != release['sha256']:
         raise Problem('封存格式或摘要不符', 409)
     rows = replay.reconstruct(release['inputs'])
     if rows != release['manifest']:
