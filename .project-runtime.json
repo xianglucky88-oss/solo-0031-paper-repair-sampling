@@ -12,6 +12,7 @@
     {"workflow_id":"trial","command":"python3 -B -m tools.smoke --through trial"},
     {"workflow_id":"observe","command":"python3 -B -m tools.smoke --through observe"},
     {"workflow_id":"patch","command":"python3 -B -m tools.smoke --through patch"},
+    {"workflow_id":"split","command":"python3 -B -m tools.split_check"},
     {"workflow_id":"finish","command":"python3 -B -m tools.smoke --through finish"},
     {"workflow_id":"seal","command":"python3 -B -m tools.smoke --through seal"},
     {"workflow_id":"reopen","command":"python3 -B -m tools.smoke --through reopen"},

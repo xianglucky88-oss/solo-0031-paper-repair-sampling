@@ -1,4 +1,4 @@
-from . import events, patches, placement, records, trials, zones
+from . import events, patches, placement, records, splits, trials, zones
 from .errors import Problem
 from .validation import fields, identifier, text
 
@@ -23,8 +23,15 @@ OPERATIONS = {'trial': trials.start, 'observe': trials.observe, 'patch': patches
               'finish': finish, 'reopen': reopen}
 
 
+def active(zone):
+    return zone.get('active', True)
+
+
 def change(db, doc, action, request):
-    if action == 'zone':
+    if action == 'split':
+        if not isinstance(request, dict) or 'expected' not in request or 'data' not in request:
+            raise Problem('拆区须提交现场版本和两个新区的编号与轮廓')
+    elif action == 'zone':
         fields(request, 'expected', 'data')
     else:
         fields(request, 'expected', 'zone', 'data')
@@ -33,10 +40,17 @@ def change(db, doc, action, request):
     if action == 'zone':
         result = zones.register(db, doc, request['data'])
         zone = result
+        facts = {'zone': zone['id'], 'result': result}
+    elif action == 'split':
+        result = splits.split(db, doc, request)
+        facts = {'zones': [zone['id'] for zone in result['zones']], 'result': result}
     else:
         zone = records.get(db, 'zone', identifier(request['zone']), doc['id'])
+        if not active(zone):
+            raise Problem('该区已拆分，不能再作为有效区域操作', 409)
         if zone['complete'] and action != 'reopen':
             raise Problem('该区已完工，须先复开', 409)
         result = OPERATIONS[action](db, doc, zone, request['data'])
-    version = events.append(db, doc['id'], expected, action, {'zone': zone['id'], 'result': result})
+        facts = {'zone': zone['id'], 'result': result}
+    version = events.append(db, doc['id'], expected, action, facts)
     return {'version': version, 'result': result}

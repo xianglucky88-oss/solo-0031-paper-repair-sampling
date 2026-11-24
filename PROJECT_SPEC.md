@@ -8,6 +8,7 @@
 - 厚度以 μm 记，pH 和 Lab 各分量用十倍整数记。旋转 `90` 交换纤维轴及补片尺寸，`0` 不变；只对相同 `condition` 的选定面计算 Lab 欧氏距离平方，不对异条件作推测或自动转换。厂批标签不参与适配计算。
 - 试补引用一张纸页、一面、一个角度和一个实际切取区。按规则列出的时点逐条观察；翘边或漂移超限立即不合格，其余情况要等最后一个时点才合格。编号跨该藏品各修订唯一。在同一区当前修订，只有合格试补才能派生补片；补片必须整块落在轮廓内且不重叠。
 - 覆盖等于损坏区面积时才可完工。复开生成新修订，当前试补与覆盖从零开始；原有事件与实物消耗不撤销。封存是对当前现场版本的签出，不递增现场版本；只允许非空且全区完工的现场。其输入为本藏品各区当前修订、规则、所引用的纸页和试补及补片，不是全库库存备份。复算检查封存内几何、面向、试补判定、裁切占位和清单；现场写入另检查全库占位。
+- 拆分把一份已在现场的损坏区按毫米轮廓改记为两个后继区：提交 `expected`、原区编号和两个新编号及轮廓。两个新区须正好分完旧轮廓，不重叠、不留缝隙、不越出旧区、不填平旧凹口；纸面与材性厚度、pH、纤维轴沿用原区，新区自第 1 修订起各自计算覆盖与完工。在位补片连同实际贴放位置按新界线各归且只归一区，原补片编号、试补、取纸与旧区域出处保留；唯一一笔试补取纸可同时支撑两区。任一在位补片被新界线切过则整次拆区拒绝，不产生半拆的账或重复取纸。拆分后原区编号停用，不再接受试补、观察、贴放、完工、复开或预检；封存只含有效的新区，拆区来源和逐片归属写入签件，可离线核对新旧轮廓与取纸。版差按贴放矩形对齐，区域归属改变记为更换，实物与裁切不变。原签件仍可原样取回和复算。
 
 ## HTTP 与交付
 
@@ -22,13 +23,14 @@
 | `GET /documents/{doc}` | 当前区域、覆盖、观察与封存摘要 |
 | `POST /documents/{doc}/preview` | 传 `zone`、`selection:{sheet,face,turn}`，返回各维相容性，不写状态 |
 | `POST /documents/{doc}/zone` | 传 `expected` 和 `data:{id,label,outline,stock,surface}` |
+| `POST /documents/{doc}/split` | 传 `expected`、原区 `zone` 和 `data:{zones:[{id,label,outline},{id,label,outline}]}` 拆成两个后继区 |
 | `POST /documents/{doc}/{trial,observe,patch,finish,reopen}` | 传 `expected`、`zone`、`data`，成功返回新现场版本 |
 | `GET /documents/{doc}/events` | 按现场版本读取结果证据 |
 | `POST /documents/{doc}/releases` | 传 `expected` 签出当前版，重复签出摘要不变 |
 | `GET /documents/{doc}/releases/{version}` | 检核过的规范 JSON，可加 `?download` 下载 |
 | `GET /documents/{doc}/releases/{version}/replay` 或 `/csv` | 复算回执或裁切 CSV |
-| `GET /documents/{doc}/compare/{old}/{new}` | 按损坏区和贴放矩形比对早晚版，返回前后证据 |
+| `GET /documents/{doc}/compare/{old}/{new}` | 按贴放矩形对齐比对早晚版，返回前后证据（含区域归属） |
 
 区域动作的 `data` 包含：`trial` 为 `id`、`selection`、`cut`；`observe` 为试补 `id` 和 `observation:{hour,drift,lifting,note}`；`patch` 为新片 `id`、`trial`、`cut`、`origin`；`finish` 传空对象；`reopen` 传 `reason`。所有修改都用操作者看过的藏品现场版本，冲突需刷新并重新核对，不自动覆盖。
 
-封存 JSON 按排序键、无空白的 UTF-8 JSON 对 `format`、`inputs`、`manifest` 计算 SHA-256（排除 `sha256` 自身）；读出时校验摘要并复算逐片清单。CSV 使用固定列和 LF，取纸与贴放矩形使用空格分隔整数。版差中目标矩形相同但来源或修订变化记为 `changed`，几何分别消失或新出现在 `removed`、`added` 中报告。
+封存 JSON 按排序键、无空白的 UTF-8 JSON 对 `format`、`inputs`、`manifest` 计算 SHA-256（排除 `sha256` 自身）；读出时校验摘要并复算逐片清单。CSV 使用固定列和 LF，取纸与贴放矩形使用空格分隔整数。版差按贴放矩形对齐，目标矩形相同但来源、修订、规范或区域归属变化记为 `changed`，几何分别消失或新出现在 `removed`、`added` 中报告；拆区只改区域归属，实物和裁切在版差中保持不变。

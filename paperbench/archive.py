@@ -1,29 +1,38 @@
-from . import events, patches, records, replay
+from . import events, patches, records, replay, trials
 from .codec import digest
 from .errors import Problem
 from .validation import fields, integer
+
+
+def active(zone):
+    return zone.get('active', True)
 
 
 def seal(db, doc, body):
     fields(body, 'expected')
     expected = body['expected']
     events.guard(db, doc['id'], expected)
-    zones = records.listing(db, 'zone', doc['id'])
+    zones = [zone for zone in records.listing(db, 'zone', doc['id']) if active(zone)]
     if not zones or not all(z['complete'] for z in zones):
         raise Problem('全部损坏区完工后才可封存', 409)
     existing = records.find(db, 'release', str(expected), doc['id'])
     if existing:
         return summary(existing)
-    trials = records.listing(db, 'trial', doc['id'])
+    trial_rows = records.listing(db, 'trial', doc['id'])
+    splits = records.listing(db, 'split', doc['id'])
     sheets = {}
     for zone in zones:
         zone['patches'] = patches.current(db, doc, zone)
-        zone['trials'] = [t for t in trials if (t['zone'], t['revision']) == (zone['id'], zone['revision'])]
+        # A trial can serve two successor zones after a split; list it once, under its home
+        # zone, so the signed release carries exactly one cut per sample.
+        zone['trials'] = [t for t in trial_rows if trials.member(t, zone) and t['zone'] == zone['id']]
         for trial in zone['trials']:
             key = trial['selection']['sheet']
             if key not in sheets:
                 sheets[key] = records.get(db, 'sheet', key)
     inputs = {'document': doc, 'version': expected, 'zones': zones, 'sheets': sheets}
+    if splits:
+        inputs['splits'] = splits
     payload = {'format': 1, 'inputs': inputs, 'manifest': replay.reconstruct(inputs)}
     release = {**payload, 'sha256': digest(payload)}
     records.put(db, 'release', str(expected), release, doc['id'])

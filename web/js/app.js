@@ -38,7 +38,8 @@ async function refresh(doc = state.doc, zoneId = state.zone?.id, sheetId = state
   doc = catalog.documents.some(d => d.id === doc) ? doc : catalog.documents[0]?.id;
   sheetId = catalog.sheets.some(s => s.id === sheetId) ? sheetId : catalog.sheets[0]?.id;
   const [board, sheet] = await Promise.all([doc && request(['documents', doc]), sheetId && request(['sheets', sheetId])]);
-  const zone = board?.zones.find(z => z.id === zoneId) || board?.zones[0];
+  const zone = board?.zones.find(z => z.id === zoneId) ||
+    board?.zones.find(z => z.active !== false) || board?.zones[0];
   state = {doc, board, zone, sheet, catalog};
   render();
 }

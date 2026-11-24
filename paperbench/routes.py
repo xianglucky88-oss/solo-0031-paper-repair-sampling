@@ -37,9 +37,13 @@ def document_route(db, doc, method, tail, body):
         case 'POST', ['preview']:
             fields(body, 'zone', 'selection')
             zone = records.get(db, 'zone', identifier(body['zone']), doc['id'])
+            if not zone.get('active', True):
+                raise Problem('该区已拆分，不能再作为有效区域操作', 409)
             selected = compatibility.selection(body['selection'])
             sheet = sheets.available(db, selected['sheet'])
             return compatibility.evaluate(zone, sheet, selected['face'], selected['turn'], doc['rule'])
+        case 'POST', ['split'] | ['zone', 'split'] | ['zones', 'split'] | ['split-zone']:
+            return lifecycle.change(db, doc, 'split', body)
         case 'POST', [action] if action == 'zone' or action in lifecycle.OPERATIONS:
             return lifecycle.change(db, doc, action, body)
         case 'POST', ['releases']:

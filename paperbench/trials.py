@@ -4,6 +4,15 @@ from .rectangles import rectangle, size
 from .validation import fields, identifier
 
 
+def zones_of(trial):
+    """该试补当前归属的损坏区；拆分前记录没有 zones 字段。"""
+    return list(trial.get('zones') or [trial['zone']])
+
+
+def member(trial, zone):
+    return zone['id'] in zones_of(trial) and trial['revision'] == zone['revision']
+
+
 def start(db, doc, zone, value):
     fields(value, 'id', 'selection', 'cut')
     key = identifier(value['id'])
@@ -20,15 +29,15 @@ def start(db, doc, zone, value):
     allocation = dict(key=f"{doc['id']}:trial:{key}", document=doc['id'], zone=zone['id'],
                       revision=zone['revision'], kind='trial', id=key, cut=cut)
     inventory.reserve(db, sheet, allocation)
-    trial = dict(id=key, zone=zone['id'], revision=zone['revision'], selection=selected,
-                 allocation=allocation, rows=[], status='pending')
+    trial = dict(id=key, zone=zone['id'], revision=zone['revision'], zones=[zone['id']],
+                 selection=selected, allocation=allocation, rows=[], status='pending')
     return records.put(db, 'trial', key, trial, doc['id'])
 
 
 def observe(db, doc, zone, value):
     fields(value, 'id', 'observation')
     trial = records.get(db, 'trial', identifier(value['id']), doc['id'])
-    if (trial['zone'], trial['revision'], trial['status']) != (zone['id'], zone['revision'], 'pending'):
+    if not member(trial, zone) or trial['status'] != 'pending':
         raise Problem('只可续记当前修订中未判定的试补', 409)
     rows = [*trial['rows'], observations.accept(trial['rows'], value['observation'], doc['rule'])]
     status = observations.disposition(rows, doc['rule'])

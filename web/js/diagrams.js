@@ -30,7 +30,7 @@ function figure(title, dimensions, label, nodes, ...below) {
 
 export function artifactMap(board, active) {
   const {document: doc, zones} = board;
-  const zonesDrawn = zones.map(zone => svg('polygon', {
+  const zonesDrawn = zones.filter(zone => zone.active !== false).map(zone => svg('polygon', {
     points: zone.outline.map(point => point.join(',')).join(' '),
     class: `zone${zone.complete ? ' done' : ''}${zone.id === active ? ' active' : ''}`,
   }, `${zone.id} ${zone.label}`));

@@ -15,6 +15,10 @@ export function benchPane(ctx) {
     data: {id: values.id, label: values.label, outline: values.outline.split(/[;；]/).map(integers),
       stock: stock(values), surface: surface(values, 'target')}}, '损坏区已登记', undefined, values.id)));
   if (!zone) return [maps, section('损坏区', register)];
+  if (zone.active === false) {
+    const retired = section(zone.label, el('p', `${zone.id} 已拆分至 ${(zone.split_into || []).join(' / ')}，仅作历史记录`, 'readout'), register);
+    return [maps, retired];
+  }
   const {target, placed, remaining} = zone.coverage;
   const measurement = zone.surface;
   const state = el('p', `${zone.id} · 第 ${zone.revision} 修订 · ${zone.complete ? '完工' : '处理中'}`, 'dim');
@@ -34,7 +38,15 @@ export function benchPane(ctx) {
     finish.disabled = remaining !== 0;
     place.append(finish);
   }
+  const split = details('拆区分段交接', form([
+    field('firstId', '新编号 A'), {...field('firstOutline', 'A 轮廓 x y；x y (mm)'), wide: true},
+    field('secondId', '新编号 B'), {...field('secondOutline', 'B 轮廓 x y；x y (mm)'), wide: true}],
+  '提交拆区', run, values => save(['documents', board.document.id, 'split'], {expected: board.version,
+    data: {zone: zone.id, zones: [
+      {id: values.firstId, outline: values.firstOutline.split(/[;；]/).map(integers)},
+      {id: values.secondId, outline: values.secondOutline.split(/[;；]/).map(integers)}]}},
+  '损坏区已拆分', board.document.id, values.firstId)));
   const lower = el('div', '', 'split');
-  lower.append(trialSection(ctx, zone), place);
+  lower.append(trialSection(ctx, zone), place, split);
   return [maps, zoneInfo, lower];
 }
