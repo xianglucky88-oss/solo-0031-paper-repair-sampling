@@ -24,7 +24,7 @@ def seal(db, doc, body):
             if key not in sheets:
                 sheets[key] = records.get(db, 'sheet', key)
     inputs = {'document': doc, 'version': expected, 'zones': zones, 'sheets': sheets}
-    payload = {'format': 1, 'inputs': inputs, 'manifest': replay.reconstruct(inputs)}
+    payload = {'format': 2, 'inputs': inputs, 'manifest': replay.reconstruct(inputs)}
     release = {**payload, 'sha256': digest(payload)}
     records.put(db, 'release', str(expected), release, doc['id'])
     return summary(release)
@@ -32,7 +32,7 @@ def seal(db, doc, body):
 
 def verify(release):
     payload = {key: value for key, value in release.items() if key != 'sha256'}
-    if release['format'] != 1 or digest(payload) != release['sha256']:
+    if release['format'] not in (1, 2) or digest(payload) != release['sha256']:
         raise Problem('封存格式或摘要不符', 409)
     rows = replay.reconstruct(release['inputs'])
     if rows != release['manifest']:

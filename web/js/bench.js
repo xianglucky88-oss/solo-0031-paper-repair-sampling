@@ -25,11 +25,18 @@ export function benchPane(ctx) {
   if (zone.complete) {
     place.append(form([field('reason', '复开原因')], '复开本区', run, data => write('reopen', data, '区域已开启新修订')));
   } else {
-    if (accepted.length) place.append(form([field('id', '补片编号'), choice('trial', '合格试补', options(accepted)),
-      field('cut', '取纸 左 上 右 下 (mm)'), field('origin', '贴放 左 上 (mm)')], '登记补片', run,
-    values => write('patch', {id: values.id, trial: values.trial, cut: integers(values.cut),
-      origin: integers(values.origin)}, '补片已登记')));
-    else place.append(el('p', '本区尚无合格试补', 'dim'));
+    if (accepted.length) {
+      place.append(form([field('id', '补片编号'), choice('trial', '合格试补', options(accepted)),
+        field('cut', '取纸 左 上 右 下 (mm)'), field('origin', '贴放 左 上 (mm)')], '登记矩形补片', run,
+      values => write('patch', {id: values.id, trial: values.trial, cut: integers(values.cut),
+        origin: integers(values.origin)}, '补片已登记')));
+      place.append(form([field('id', '整补编号'), choice('trial', '合格试补', options(accepted)),
+        {...field('outline', '源纸轮廓顶点 x y；x y (mm)'), wide: true},
+        field('origin', '贴放起点 左 上 (mm)')], '登记整片补片（转角无接缝）', run,
+      values => write('patch', {id: values.id, trial: values.trial,
+        outline: values.outline.split(/[;；]/).map(integers),
+        origin: integers(values.origin)}, '整片补片已登记')));
+    } else place.append(el('p', '本区尚无合格试补', 'dim'));
     const finish = action('确认完工', run, () => write('finish', {}, '区域已完工'));
     finish.disabled = remaining !== 0;
     place.append(finish);

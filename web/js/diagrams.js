@@ -11,8 +11,21 @@ function svg(tag, attrs, label) {
   return node;
 }
 
-function rectangle([x, y, r, b], cls, label) {
-  return svg('rect', {x, y, width: r - x, height: b - y, class: cls}, label);
+function asPoints(shape) {
+  // A rectangle is [l,t,r,b]; an outline is a list of [x,y] vertices.
+  if (shape.length === 4 && typeof shape[0] === 'number') {
+    const [x, y, r, b] = shape;
+    return [[x, y], [r, y], [r, b], [x, b]];
+  }
+  return shape;
+}
+
+function polygon(shape, cls, label) {
+  return svg('polygon', {points: asPoints(shape).map(point => point.join(',')).join(' '), class: cls}, label);
+}
+
+function textOf(shape) {
+  return asPoints(shape).map(point => point.join(' ')).join(' ; ');
 }
 
 function figure(title, dimensions, label, nodes, ...below) {
@@ -23,7 +36,7 @@ function figure(title, dimensions, label, nodes, ...below) {
   const pad = Math.max(w, h) * .06;
   const plot = svg('svg', {class: 'diagram', viewBox: `${-pad} ${-pad} ${w + 2 * pad} ${h + 2 * pad}`,
     role: 'img', 'aria-label': `${title}，${label}`});
-  plot.append(rectangle([0, 0, w, h], 'page'), ...nodes);
+  plot.append(svg('rect', {x: 0, y: 0, width: w, height: h, class: 'page'}), ...nodes);
   node.append(caption, plot, ...below);
   return node;
 }
@@ -36,8 +49,8 @@ export function artifactMap(board, active) {
   }, `${zone.id} ${zone.label}`));
   const patches = zones.flatMap(zone => zone.patches);
   return figure('藏品贴放图', [doc.width, doc.height], `${doc.width} × ${doc.height} mm · 橙：待补区 · 绿：补片或完工区`,
-    [...zonesDrawn, ...patches.map(p => rectangle(p.destination, 'patch', `补片 ${p.id}`))],
-    list(patches, p => [`${p.id} · 贴放 (${p.destination.join(', ')})`, `${p.zone} · 第 ${p.revision} 修订 · 试补 ${p.trial}`]));
+    [...zonesDrawn, ...patches.map(p => polygon(p.destination, 'patch', `补片 ${p.id}`))],
+    list(patches, p => [`${p.id} · 贴放 (${textOf(p.destination)})`, `${p.zone} · 第 ${p.revision} 修订 · 试补 ${p.trial} · ${p.shape === 'outline' ? '整片' : '矩形'}`]));
 }
 
 export function sheetMap(view, sheetPicker) {
@@ -49,6 +62,6 @@ export function sheetMap(view, sheetPicker) {
   const {sheet, lot, cuts} = view;
   return figure(`裁切台 · ${sheet.id}`, [sheet.width, sheet.height],
     `${sheet.width} × ${sheet.height} mm · ${lot.active ? '启用' : '已停用'} · 橙：样片 · 绿：补片`,
-    cuts.map(c => rectangle(c.cut, c.kind === 'trial' ? 'sample' : 'patch', `${c.document} / ${c.id}`)),
-    sheetPicker, list(cuts, c => [`${c.id} · 取纸 (${c.cut.join(', ')})`, `${c.document}/${c.zone} · 第 ${c.revision} 修订`]));
+    cuts.map(c => polygon(c.shape ?? c.cut, c.kind === 'trial' ? 'sample' : 'patch', `${c.document} / ${c.id}`)),
+    sheetPicker, list(cuts, c => [`${c.id} · 取纸 (${textOf(c.shape ?? c.cut)})`, `${c.document}/${c.zone} · 第 ${c.revision} 修订`]));
 }

@@ -1,9 +1,15 @@
-def compare(old, new):
-    # Rectangles can be replaced across revisions; identity is the position and area on the artifact.
-    def index(release):
-        return {(row['zone'], *row['destination']): row for row in release['manifest']}
+from .codec import encode
 
-    before, after = index(old), index(new)
+
+def key_of(row):
+    # Identity is the position and geometry on the artifact; outlines must be hashable too.
+    return row['zone'], encode(row['destination']).decode()
+
+
+def compare(old, new):
+    # Pieces can be replaced across revisions; identity is the position and area on the artifact.
+    before = {key_of(row): row for row in old['manifest']}
+    after = {key_of(row): row for row in new['manifest']}
     changes = []
     for key in sorted(before.keys() | after.keys()):
         a, b = before.get(key), after.get(key)

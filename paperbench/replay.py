@@ -2,12 +2,23 @@ from collections import defaultdict
 
 from . import compatibility, observations, placement
 from .errors import Problem
-from .rectangles import footprint, overlaps, size
+from .outlines import as_outline, bbox, placed_outline, shapes_overlap
+from .rectangles import footprint, size
 
 
 def require(condition):
     if not condition:
         raise Problem('封存证据复算不一致', 409)
+
+
+def allocation_shape(allocation):
+    """New records store shape (rect or outline); legacy records store cut rectangle."""
+    return as_outline(allocation['shape'] if 'shape' in allocation else allocation['cut'])
+
+
+def rect_from(shape):
+    x0, y0, x1, y1 = bbox(shape)
+    return [x0, y0, x1, y1]
 
 
 def reconstruct(inputs):
@@ -17,10 +28,11 @@ def reconstruct(inputs):
 
     def account(selected, allocation, zone):
         sheet = inputs['sheets'][selected['sheet']]
-        cut = allocation['cut']
-        require(0 <= cut[0] < cut[2] <= sheet['width'] and 0 <= cut[1] < cut[3] <= sheet['height'])
-        require(not any(overlaps(cut, other) for other in occupied[sheet['id']]))
-        occupied[sheet['id']].append(cut)
+        shape = allocation_shape(allocation)
+        x0, y0, right, bottom = bbox(shape)
+        require(0 <= x0 and 0 <= y0 and right <= sheet['width'] and bottom <= sheet['height'])
+        require(not any(shapes_overlap(shape, other) for other in occupied[sheet['id']]))
+        occupied[sheet['id']].append(shape)
         require(compatibility.evaluate(zone, sheet, selected['face'], selected['turn'], rule)['compatible'])
         return sheet
 
@@ -30,8 +42,8 @@ def reconstruct(inputs):
         trials = {trial['id']: trial for trial in zone['trials']}
         for trial in trials.values():
             require(trial['zone'] == zone['id'] and trial['revision'] == zone['revision'])
-            cut = trial['allocation']['cut']
-            require(min(size(cut)) >= rule['sample_edge'])
+            shape = allocation_shape(trial['allocation'])
+            require(len(shape) == 4 and min(size(rect_from(shape))) >= rule['sample_edge'])
             account(trial['selection'], trial['allocation'], zone)
             rows = []
             for row in trial['rows']:
@@ -45,12 +57,19 @@ def reconstruct(inputs):
             require(trial['status'] == 'accepted' and selected == trial['selection'])
             require(patch['zone'] == zone['id'] and patch['revision'] == zone['revision'])
             sheet = account(selected, patch['allocation'], zone)
-            dest, cut = patch['destination'], patch['allocation']['cut']
-            require(dest == footprint(dest[:2], cut, selected['turn']))
-            placement.check(zone, dest, placed)
+            shape = allocation_shape(patch['allocation'])
+            origin = patch.get('origin', patch['destination'][:2])
+            if len(shape) == 4:
+                expect_dest = footprint(origin, rect_from(shape), selected['turn'])
+            else:
+                expect_dest = placed_outline(shape, origin, selected['turn'])
+            require(patch['destination'] == expect_dest)
+            placement.check(zone, patch['destination'], placed)
             placed.append(patch)
+            manifest_cut = rect_from(shape) if len(shape) == 4 else shape
             manifest.append(dict(zone=zone['id'], revision=zone['revision'], patch=patch['id'],
                                  trial=trial['id'], sheet=sheet['id'], lot=sheet['lot'], face=selected['face'],
-                                 turn=selected['turn'], cut=cut, destination=dest, rule=rule['id']))
+                                 turn=selected['turn'], cut=manifest_cut, destination=patch['destination'],
+                                 rule=rule['id']))
         require(placement.coverage(zone, placed)['remaining'] == 0)
     return manifest

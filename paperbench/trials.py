@@ -18,7 +18,7 @@ def start(db, doc, zone, value):
     if min(size(cut)) < doc['rule']['sample_edge']:
         raise Problem('试补样片边长不足')
     allocation = dict(key=f"{doc['id']}:trial:{key}", document=doc['id'], zone=zone['id'],
-                      revision=zone['revision'], kind='trial', id=key, cut=cut)
+                      revision=zone['revision'], kind='trial', id=key, shape=cut)
     inventory.reserve(db, sheet, allocation)
     trial = dict(id=key, zone=zone['id'], revision=zone['revision'], selection=selected,
                  allocation=allocation, rows=[], status='pending')
