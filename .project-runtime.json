@@ -16,6 +16,7 @@
     {"workflow_id":"seal","command":"python3 -B -m tools.smoke --through seal"},
     {"workflow_id":"reopen","command":"python3 -B -m tools.smoke --through reopen"},
     {"workflow_id":"replay","command":"python3 -B -m tools.smoke --through replay"},
-    {"workflow_id":"export","command":"python3 -B -m tools.smoke --through export"}
+    {"workflow_id":"export","command":"python3 -B -m tools.smoke --through export"},
+    {"workflow_id":"replace","command":"python3 -B -m tools.smoke --through replace"}
   ]
 }

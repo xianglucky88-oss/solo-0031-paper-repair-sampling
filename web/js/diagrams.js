@@ -35,9 +35,12 @@ export function artifactMap(board, active) {
     class: `zone${zone.complete ? ' done' : ''}${zone.id === active ? ' active' : ''}`,
   }, `${zone.id} ${zone.label}`));
   const patches = zones.flatMap(zone => zone.patches);
-  return figure('藏品贴放图', [doc.width, doc.height], `${doc.width} × ${doc.height} mm · 橙：待补区 · 绿：补片或完工区`,
-    [...zonesDrawn, ...patches.map(p => rectangle(p.destination, 'patch', `补片 ${p.id}`))],
-    list(patches, p => [`${p.id} · 贴放 (${p.destination.join(', ')})`, `${p.zone} · 第 ${p.revision} 修订 · 试补 ${p.trial}`]));
+  const lifted = zones.flatMap(zone => zone.withdrawn ?? []);
+  return figure('藏品贴放图', [doc.width, doc.height], `${doc.width} × ${doc.height} mm · 橙：待补区 · 绿：补片或完工区 · 虚线：已撤下`,
+    [...zonesDrawn, ...lifted.map(p => rectangle(p.destination, 'patch lifted', `已撤下 ${p.id}`)),
+      ...patches.map(p => rectangle(p.destination, 'patch', `补片 ${p.id}`))],
+    list(patches, p => [`${p.id} · 贴放 (${p.destination.join(', ')})`, `${p.zone} · 第 ${p.revision} 修订 · 试补 ${p.trial}`]),
+    list(lifted, p => [`${p.id} · 已撤下 (${p.destination.join(', ')})`, `${p.zone} · 第 ${p.revision} 修订撤下 · 纸料已消耗`]));
 }
 
 export function sheetMap(view, sheetPicker) {

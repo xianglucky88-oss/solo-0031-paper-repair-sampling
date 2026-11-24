@@ -26,9 +26,11 @@ export function trialSection(ctx, zone) {
   });
   const histories = zone.trials.map(trial => {
     const rows = list(trial.rows, r => [`${r.hour} h · 漂移 ${r.drift / 10} · ${r.lifting ? '翘边' : '未翘边'}`, r.note]);
-    const summary = `${trial.id} · ${trial.selection.sheet} · ${trial.selection.face === 'front' ? '正面' : '反面'} · ${trial.selection.turn}° · ${disposition[trial.status]}`;
+    const used = trial.backs?.length ? ` · 已用于 ${trial.backs.join('、')}` : '';
+    const eligible = trial.usable && trial.revision !== zone.revision && !trial.backs?.length ? ' · 可沿用补回被撤片原位' : '';
+    const summary = `${trial.id} · 第 ${trial.revision} 修订 · ${trial.selection.sheet} · ${trial.selection.face === 'front' ? '正面' : '反面'} · ${trial.selection.turn}° · ${disposition[trial.status]}${used}${eligible}`;
     const block = details(summary, rows);
-    if (!zone.complete && trial.status === 'pending') {
+    if (!zone.complete && trial.status === 'pending' && trial.revision === zone.revision) {
       block.open = true;
       const hour = board.document.rule.hours[trial.rows.length];
       block.append(form([number('drift', '漂移 × 10', 0), {...field('lifting', '有翘边'), type: 'checkbox'},

@@ -7,6 +7,7 @@ figcaption { display:grid; gap:.15rem; margin-bottom:.5rem; overflow-wrap:anywhe
 .diagram .zone { fill:#f2c4a8; stroke:#9e482c; }
 .diagram .zone.done { fill:#cce2ce; stroke:#3e694b; }
 .diagram .patch { fill:#80baae; stroke:#175647; }
+.diagram .patch.lifted { fill:none; stroke:#6d7f77; stroke-dasharray:4 3; }
 .diagram .sample { fill:#eec295; stroke:#9e482c; }
 .diagram .active { stroke-width:2.4; }
 .diagram rect,.diagram polygon { vector-effect:non-scaling-stroke; }

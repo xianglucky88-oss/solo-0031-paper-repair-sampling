@@ -19,17 +19,29 @@ export function benchPane(ctx) {
   const measurement = zone.surface;
   const state = el('p', `${zone.id} · 第 ${zone.revision} 修订 · ${zone.complete ? '完工' : '处理中'}`, 'dim');
   const zoneInfo = section(zone.label, state, el('p', `覆盖 ${placed} / ${target} mm² · 剩余 ${remaining} mm²`, 'readout'),
-    el('p', `目标纸面 ${measurement.condition} · Lab × 10：${['l', 'a', 'b'].map(key => measurement.lab[key]).join(' / ')} · 纤维轴 ${zone.stock.grain}`, 'dim'), register);
-  const accepted = zone.trials.filter(t => t.status === 'accepted');
+    el('p', `目标纸面 ${measurement.condition} · Lab × 10：${['l', 'a', 'b'].map(key => measurement.lab[key]).join(' / ')} · 纤维轴 ${zone.stock.grain}`, 'dim'),
+    ...(zone.withdrawn.length ? [el('p', `已撤下：${zone.withdrawn.map(p => p.id).join('、')}（纸料已消耗，不退回）`, 'dim')] : []),
+    register);
+  // Pieces available to back a patch: a fresh accepted trial in this revision,
+  // or the withdrawn piece's own basis on the same sheet, face and angle.
+  const accepted = zone.trials.filter(t => t.status === 'accepted' && t.usable !== false);
   const place = section('裁切与贴放');
   if (zone.complete) {
-    place.append(form([field('reason', '复开原因')], '复开本区', run, data => write('reopen', data, '区域已开启新修订')));
+    // Lift exactly one finished piece while the rest keep covering.
+    place.append(form([choice('patch', '本区已完工补片', options(zone.patches)),
+      field('reason', '换片原因')], '撤下这一片，开新修订', run,
+    values => write('replace', {patch: values.patch, reason: values.reason}, '新修订已开，仅撤下所选补片')));
+    place.append(form([field('reason', '复开原因')], '整区复开', run, data => write('reopen', data, '区域已开启新修订')));
   } else {
+    if (zone.rework) {
+      const lifted = zone.rework.withdrawn_patch;
+      place.append(el('p', `本次返工撤下 ${lifted.id} · 待补回贴放 (${lifted.destination.join(', ')})`, 'readout'));
+    }
     if (accepted.length) place.append(form([field('id', '补片编号'), choice('trial', '合格试补', options(accepted)),
       field('cut', '取纸 左 上 右 下 (mm)'), field('origin', '贴放 左 上 (mm)')], '登记补片', run,
     values => write('patch', {id: values.id, trial: values.trial, cut: integers(values.cut),
       origin: integers(values.origin)}, '补片已登记')));
-    else place.append(el('p', '本区尚无合格试补', 'dim'));
+    else place.append(el('p', '本区尚无可用试补', 'dim'));
     const finish = action('确认完工', run, () => write('finish', {}, '区域已完工'));
     finish.disabled = remaining !== 0;
     place.append(finish);

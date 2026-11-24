@@ -7,7 +7,8 @@
 - 坐标为左上原点的整数毫米，宽高不超过 3000。轮廓由 4–32 个交替水平垂直顶点构成，不允许自触、自交及不同区域重叠。取纸矩形为 `[左,上,右,下]`，左和上含边界，面积重叠才冲突。每张纸页的试补与补片占位跨藏品、纸面和修订共享。
 - 厚度以 μm 记，pH 和 Lab 各分量用十倍整数记。旋转 `90` 交换纤维轴及补片尺寸，`0` 不变；只对相同 `condition` 的选定面计算 Lab 欧氏距离平方，不对异条件作推测或自动转换。厂批标签不参与适配计算。
 - 试补引用一张纸页、一面、一个角度和一个实际切取区。按规则列出的时点逐条观察；翘边或漂移超限立即不合格，其余情况要等最后一个时点才合格。编号跨该藏品各修订唯一。在同一区当前修订，只有合格试补才能派生补片；补片必须整块落在轮廓内且不重叠。
-- 覆盖等于损坏区面积时才可完工。复开生成新修订，当前试补与覆盖从零开始；原有事件与实物消耗不撤销。封存是对当前现场版本的签出，不递增现场版本；只允许非空且全区完工的现场。其输入为本藏品各区当前修订、规则、所引用的纸页和试补及补片，不是全库库存备份。复算检查封存内几何、面向、试补判定、裁切占位和清单；现场写入另检查全库占位。
+- 覆盖等于损坏区面积时才可完工。复开生成新修订，当前试补与覆盖从零开始；原有事件与实物消耗不撤销。已完工区也可只换一片：指定本区当前覆盖中的一片和原因，新修订只撤下这一片，其余补片连同原编号、贴放时的修订、试补依据和实际取纸位置继续覆盖。撤下的纸料不退回可裁区，其他藏品和纸面占用的裁切位置也不得借用。新片须恰好补回被撤片在藏品上的原位置和范围，不得挤占留下的补片。新片可沿用被撤片原来的合格试补，但仅限同一实物纸页、同一面和同一旋转角，且该纸批仍可裁切、剩余位置裁得下；改用其他纸页、纸面或角度时，须有本次返工、按原规则观察到最后一个时点才合格的试补。已停用批次不影响原处补片和旧封存的复算，但不能用于裁新片。替换未补回并重新完工前不得签出新版。
+- 封存是对当前现场版本的签出，不递增现场版本；只允许非空且全区完工的现场。其输入为本藏品各区当前修订、规则、所引用的纸页和试补及补片（含本修订撤下的补片及其证据），不是全库库存备份。复算检查封存内几何、面向、试补判定、裁切占位、跨修订沿用和清单，并确认同一试样不因跨修订沿用被计作两次取纸；现场写入另检查全库占位。
 
 ## HTTP 与交付
 
@@ -22,13 +23,13 @@
 | `GET /documents/{doc}` | 当前区域、覆盖、观察与封存摘要 |
 | `POST /documents/{doc}/preview` | 传 `zone`、`selection:{sheet,face,turn}`，返回各维相容性，不写状态 |
 | `POST /documents/{doc}/zone` | 传 `expected` 和 `data:{id,label,outline,stock,surface}` |
-| `POST /documents/{doc}/{trial,observe,patch,finish,reopen}` | 传 `expected`、`zone`、`data`，成功返回新现场版本 |
+| `POST /documents/{doc}/{trial,observe,patch,finish,reopen,replace}` | 传 `expected`、`zone`、`data`，成功返回新现场版本 |
 | `GET /documents/{doc}/events` | 按现场版本读取结果证据 |
 | `POST /documents/{doc}/releases` | 传 `expected` 签出当前版，重复签出摘要不变 |
 | `GET /documents/{doc}/releases/{version}` | 检核过的规范 JSON，可加 `?download` 下载 |
 | `GET /documents/{doc}/releases/{version}/replay` 或 `/csv` | 复算回执或裁切 CSV |
 | `GET /documents/{doc}/compare/{old}/{new}` | 按损坏区和贴放矩形比对早晚版，返回前后证据 |
 
-区域动作的 `data` 包含：`trial` 为 `id`、`selection`、`cut`；`observe` 为试补 `id` 和 `observation:{hour,drift,lifting,note}`；`patch` 为新片 `id`、`trial`、`cut`、`origin`；`finish` 传空对象；`reopen` 传 `reason`。所有修改都用操作者看过的藏品现场版本，冲突需刷新并重新核对，不自动覆盖。
+区域动作的 `data` 包含：`trial` 为 `id`、`selection`、`cut`；`observe` 为试补 `id` 和 `observation:{hour,drift,lifting,note}`；`patch` 为新片 `id`、`trial`、`cut`、`origin`；`finish` 传空对象；`reopen` 传 `reason`（整区复开）；`replace` 传 `patch` 和 `reason`（只撤下本区当前覆盖中的这一片），`reopen` 传同样字段时也走单片换片。所有修改都用操作者看过的藏品现场版本，冲突需刷新并重新核对，不自动覆盖。
 
-封存 JSON 按排序键、无空白的 UTF-8 JSON 对 `format`、`inputs`、`manifest` 计算 SHA-256（排除 `sha256` 自身）；读出时校验摘要并复算逐片清单。CSV 使用固定列和 LF，取纸与贴放矩形使用空格分隔整数。版差中目标矩形相同但来源或修订变化记为 `changed`，几何分别消失或新出现在 `removed`、`added` 中报告。
+封存 JSON 按排序键、无空白的 UTF-8 JSON 对 `format`、`inputs`、`manifest` 计算 SHA-256（排除 `sha256` 自身）；读出时校验摘要并复算逐片清单。CSV 使用固定列和 LF，取纸与贴放矩形使用空格分隔整数。版差中目标矩形相同但来源或修订变化记为 `changed`，几何分别消失或新出现在 `removed`、`added` 中报告；单片换片后未动的补片目标、来源与修订均不变，不列为版差。

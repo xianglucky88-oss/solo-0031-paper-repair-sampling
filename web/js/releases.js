@@ -3,7 +3,7 @@ import {details, el, json, list, section} from './dom.js';
 import {action, choice, form} from './fields.js';
 
 const actionNames = {zone: '登记损坏区', trial: '切取样片', observe: '登记观察',
-  patch: '贴放补片', finish: '完工', reopen: '复开'};
+  patch: '贴放补片', finish: '完工', reopen: '复开', replace: '换片撤下'};
 
 function download(url, label) {
   const link = el('a', label, 'download');

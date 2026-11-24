@@ -14,11 +14,22 @@ def seal(db, doc, body):
     existing = records.find(db, 'release', str(expected), doc['id'])
     if existing:
         return summary(existing)
-    trials = records.listing(db, 'trial', doc['id'])
+    trials = {trial['id']: trial for trial in records.listing(db, 'trial', doc['id'])}
     sheets = {}
     for zone in zones:
-        zone['patches'] = patches.current(db, doc, zone)
-        zone['trials'] = [t for t in trials if (t['zone'], t['revision']) == (zone['id'], zone['revision'])]
+        covering = patches.current(db, doc, zone)
+        lifted = patches.withdrawn_patches(db, doc, zone)
+        zone['patches'] = covering
+        # Lifted pieces no longer cover, but their paper stays cut and their
+        # evidence stays in the snapshot so the release can still account for
+        # every sample ever drawn from the sheets it names.
+        zone['withdrawn'] = lifted
+        # Every sample drawn in this epoch stays accounted, whether or not a
+        # covering piece still points at it: withdrawn pieces keep their spent
+        # paper and the intact pieces keep the trial they were cut from.
+        zone['trials'] = [trial for trial in trials.values()
+                          if trial['zone'] == zone['id']
+                          and trial['revision'] >= patches.epoch(zone)]
         for trial in zone['trials']:
             key = trial['selection']['sheet']
             if key not in sheets:

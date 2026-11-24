@@ -14,7 +14,7 @@ DOC = 'documents/FOL-07'
 ZONE = 'Z1'
 SHEET = 'sheets/KOZO-4A'
 STAGES = ('rules', 'zone', 'stock', 'preview', 'trial', 'observe', 'patch', 'finish',
-          'seal', 'reopen', 'replay', 'export')
+          'seal', 'reopen', 'replay', 'export', 'replace')
 
 
 class QuietHandler(httpd.Handler):
@@ -170,12 +170,77 @@ def exercise(b):
     check(csv.count(b'\n') == 3 and b'66 55 104 71' in csv, 'two stable cutting rows')
     check(csv == b.api(f'{base}/csv', raw=True) and b.api(f'{base}?download', raw=True) == old, 'stable exports')
     b.api(f'{DOC}/releases/1/csv', status=404)
-    b.stage('export')
+    if b.stage('export'): return
+
+    replace_one(b, b.version)
+
+
+def replace_one(b, before_replacement):
+    """Lift a single bad piece while the intact one keeps covering."""
+    zone = b.api(DOC)['zones'][0]
+    check(zone['complete'] and [p['id'] for p in zone['patches']] == ['P3', 'P4'], 'both pieces finished')
+    b.change('replace', {'patch': 'MISSING', 'reason': '不存在'}, 409)
+    b.change('replace', {'patch': 'P3', 'reason': '贴放偏斜'})
+    zone = b.api(DOC)['zones'][0]
+    check([p['id'] for p in zone['patches']] == ['P4'], 'only the named piece is lifted')
+    check([p['id'] for p in zone['withdrawn']] == ['P3'], 'the piece is recorded as withdrawn')
+    check(zone['coverage']['placed'] == 196, 'the intact piece still counts as cover')
+    check(zone['patches'][0]['revision'] == 2 and zone['patches'][0]['trial'] == 'T2',
+          'retained piece keeps its revision and trial')
+    b.api(f'{DOC}/releases', {'expected': b.version}, 409)
+    # The lifted piece's cut stays consumed, and its refit may not borrow it.
+    b.change('patch', {'id': 'P5', 'trial': 'T2', 'cut': [60, 0, 76, 38], 'origin': [66, 55]}, 409)
+    # The original lot is retired, so its trial cannot back a newly cut piece.
+    b.change('patch', {'id': 'P5', 'trial': 'T2', 'cut': [4, 40, 20, 78], 'origin': [66, 55]}, 409)
+    # A fresh trial in this rework may use a newly registered, active sheet.
+    base_sheet = next(body for path, body in demo.requests() if path == 'sheets' and body['id'] == 'KOZO-4A')
+    b.api('lots', {'id': 'KOZO-5', 'label': '楮皮试制 · 第五批'})
+    b.api('sheets', {**base_sheet, 'id': 'KOZO-5A', 'lot': 'KOZO-5'})
+    fresh = dict(demo.requests())[f'{DOC}/trial']['data']
+    b.change('trial', {**fresh, 'id': 'T3', 'selection': {**fresh['selection'], 'sheet': 'KOZO-5A'},
+                       'cut': [60, 0, 68, 8]})
+    observation = dict(demo.requests())[f'{DOC}/observe']['data']
+    b.change('observe', {**observation, 'id': 'T3'})
+    b.change('observe', {**observation, 'id': 'T3',
+                         'observation': {**observation['observation'], 'hour': 24, 'note': '仍平整'}})
+    b.change('patch', {'id': 'P5', 'trial': 'T3', 'cut': [0, 30, 16, 68], 'origin': [66, 55]})
+    b.change('finish', {})
+    second = b.version
+    b.api(f'{DOC}/releases', {'expected': second})
+    release = b.api(f'{DOC}/releases/{second}')
+    check([row['revision'] for row in release['manifest']] == [2, 3],
+          'manifest names the revision each piece was set in')
+    check(b.api(f'{DOC}/releases/{second}/replay')['consistent'], 'replacement release replays')
+    check(b.api(f'{DOC}/releases/{second}?download', raw=True) == b.api(f'{DOC}/releases/{second}', raw=True),
+          'replacement release downloads unchanged')
+    changes = b.api(f'{DOC}/compare/{before_replacement}/{second}')['changes']
+    check([item['kind'] for item in changes] == ['changed'],
+          'only the refitted position changes, the untouched piece does not')
+    # Replacing again on an active sheet may carry the lifted piece's own
+    # accepted trial over, with no new sample and no extra observation round.
+    b.change('replace', {'patch': 'P5', 'reason': '边角仍开'})
+    b.change('patch', {'id': 'P6', 'trial': 'T3', 'cut': [16, 30, 32, 68], 'origin': [66, 55]})
+    b.change('finish', {})
+    third = b.version
+    b.api(f'{DOC}/releases', {'expected': third})
+    release = b.api(f'{DOC}/releases/{third}')
+    check([(row['patch'], row['revision'], row['trial']) for row in release['manifest']]
+          == [('P4', 2, 'T2'), ('P6', 4, 'T3')], 'kept basis is recorded with its original revision')
+    check(b.api(f'{DOC}/releases/{third}/replay')['consistent'], 'carried-over basis replays')
+    check([item['kind'] for item in b.api(f'{DOC}/compare/{second}/{third}')['changes']] == ['changed'],
+          'second replacement again touches only one piece')
+    # A retired batch still explains every piece already stuck down, but the
+    # same lot may no longer be cut for a new one.
+    b.api('retire', {'id': 'KOZO-5', 'reason': '演练停用新纸页批次'})
+    b.change('replace', {'patch': 'P4', 'reason': '边部再换'})
+    b.change('patch', {'id': 'P7', 'trial': 'T2', 'cut': [90, 0, 106, 38], 'origin': [90, 71]}, 409)
+    b.change('finish', {}, 409)
+    if b.stage('replace'): return
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--through', default='export', choices=STAGES)
+    parser.add_argument('--through', default='replace', choices=STAGES)
     args = parser.parse_args()
     with TemporaryDirectory(prefix='paperbench-') as tmp:
         with httpd.server(Database(Path(tmp) / 'work.sqlite3'), 0) as server:
