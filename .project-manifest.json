@@ -1,0 +1,33 @@
+{
+  "project_shape":"fullstack",
+  "modules":[
+    {"id":"http","paths":["paperbench/httpd.py","paperbench/routes.py","paperbench/__main__.py"],"responsibility":"本机 HTTP 路由及请求事务"},
+    {"id":"storage","paths":["paperbench/database.py","paperbench/schema.py","paperbench/records.py","paperbench/codec.py"],"responsibility":"提供 SQLite 原子事务和规范记录"},
+    {"id":"catalog","paths":["paperbench/rules.py","paperbench/documents.py","paperbench/materials.py","paperbench/sheets.py"],"responsibility":"登记不可改写的工作输入及批次停用"},
+    {"id":"geometry","paths":["paperbench/outlines.py","paperbench/rectangles.py","paperbench/placement.py","paperbench/zones.py"],"responsibility":"验证轮廓、贴放位置和覆盖"},
+    {"id":"material","paths":["paperbench/measurements.py","paperbench/compatibility.py"],"responsibility":"归一纸面测量和评估材料适配"},
+    {"id":"inventory","paths":["paperbench/inventory.py"],"responsibility":"核对同一实物纸页全局裁切占位"},
+    {"id":"trials","paths":["paperbench/trials.py","paperbench/observations.py"],"responsibility":"控制试补取样、观察序列和判定"},
+    {"id":"patches","paths":["paperbench/patches.py"],"responsibility":"把合格试补和实际切取绑定到补片"},
+    {"id":"lifecycle","paths":["paperbench/lifecycle.py","paperbench/events.py"],"responsibility":"控制现场修订生命周期和事件代次"},
+    {"id":"workbench","paths":["paperbench/workbench.py"],"responsibility":"汇总当前读模型及实物纸页的消耗记录"},
+    {"id":"archive","paths":["paperbench/archive.py","paperbench/replay.py"],"responsibility":"封存规范证据及离线复算清单"},
+    {"id":"delivery","paths":["paperbench/comparison.py","paperbench/export.py"],"responsibility":"生成版差和固定格式裁切 CSV"},
+    {"id":"web","paths":["web/index.html","web/js/app.js","web/js/diagrams.js","web/js/releases.js"],"responsibility":"呈现贴放、裁切、试补和封存现场"}
+  ],
+  "complexity":{"mechanisms":["规则和纸页事实冻结","正交轮廓剖分","同测量条件的选面距离","旋转纤维轴与尺寸转换","跨藏品和纸面的裁切占位","逐时点观察门控","藏品现场乐观版本","覆盖后完工和复开修订","内容寻址校验与证据复算","固定列清单和位置级版差"]},
+  "workflows":[
+    {"id":"rules","name":"冻结规则","entry":"POST /api/rules","steps":["验证观察时间顺序和阈值","按规则编号冻结输入"],"module_ids":["http","catalog","storage"],"success":"同版重传不改变规则","failure":"同版不能改写阈值","verification":"python3 -B -m tools.smoke --through rules"},
+    {"id":"zone","name":"登记损坏区","entry":"POST /api/documents/{id}/zone","steps":["核对藏品现场版本","验证轮廓和相邻区域，计算损坏面积"],"module_ids":["http","geometry","catalog","lifecycle","storage","workbench"],"success":"登记凹轮廓并返回实际面积","failure":"非法边或重叠区域不接收","verification":"python3 -B -m tools.smoke --through zone"},
+    {"id":"stock","name":"登记实物纸页","entry":"POST /api/sheets","steps":["定位批次并核对状态","保存纸页和两面测量值"],"module_ids":["http","catalog","material","storage"],"success":"占位读模型返回同一张纸","failure":"不能覆盖已登记纸页尺寸","verification":"python3 -B -m tools.smoke --through stock"},
+    {"id":"preview","name":"预检面向适配","entry":"POST /api/documents/{id}/preview","steps":["读取目标区域和选定纸面","计算测量可比性和纤维轴"],"module_ids":["http","storage","catalog","material"],"success":"适配时返回各维判定且不占料","failure":"条件不同标记色差不可比","verification":"python3 -B -m tools.smoke --through preview"},
+    {"id":"trial","name":"取试补样片","entry":"POST /api/documents/{id}/trial","steps":["再核对纸面适配和最小尺寸","原子占用该实物纸页"],"module_ids":["http","lifecycle","material","trials","inventory","storage"],"success":"写入样片及待观察记录","failure":"其他藏品选反面也不能复用相同纸料","verification":"python3 -B -m tools.smoke --through trial"},
+    {"id":"observe","name":"登记观察和判定","entry":"POST /api/documents/{id}/observe","steps":["检查当前修订和待记录时点","按翘边和漂移冻结观察结论"],"module_ids":["http","lifecycle","trials","storage"],"success":"最后一个时点无异常后才合格","failure":"跳点或重复观察拒绝","verification":"python3 -B -m tools.smoke --through observe"},
+    {"id":"patch","name":"补片裁切与贴放","entry":"POST /api/documents/{id}/patch","steps":["继承当前合格试补的纸面与角度","校验贴放轮廓并占用实物纸料"],"module_ids":["http","patches","geometry","inventory","lifecycle","storage"],"success":"90 度交换矩形尺寸","failure":"凹区空隙和贴放重叠拒绝","verification":"python3 -B -m tools.smoke --through patch"},
+    {"id":"finish","name":"确认区域完工","entry":"POST /api/documents/{id}/finish","steps":["计算当前修订覆盖差额","完整覆盖后锁住现场区域"],"module_ids":["http","geometry","lifecycle","patches","storage"],"success":"完工后区域操作被冻结","failure":"缺片时拒绝完工","verification":"python3 -B -m tools.smoke --through finish"},
+    {"id":"seal","name":"封存现场","entry":"POST /api/documents/{id}/releases","steps":["检查全区完工和现场版本","复制证据并复算规范清单"],"module_ids":["http","archive","lifecycle","patches","storage","geometry","trials"],"success":"同现场版本重复封存幂等","failure":"遗漏完工的区域挡住签出","verification":"python3 -B -m tools.smoke --through seal"},
+    {"id":"reopen","name":"复开损坏区","entry":"POST /api/documents/{id}/reopen","steps":["核对旧区已完工","推进修订但保留旧封存及裁切"],"module_ids":["http","lifecycle","storage","workbench","patches"],"success":"当前覆盖清零，旧版及实物消耗不变","failure":"不可连续复开或使用旧修订试补贴放","verification":"python3 -B -m tools.smoke --through reopen"},
+    {"id":"replay","name":"封存复算与版差","entry":"GET /api/documents/{id}/releases/{version}/replay 和 /compare/{old}/{new}","steps":["校验封存摘要并从冻结证据重算","按目标矩形对齐新旧来源"],"module_ids":["http","archive","storage","delivery","geometry","trials"],"success":"当前纸料停用不影响复算和版差","failure":"不存在的封存版不能读取","verification":"python3 -B -m tools.smoke --through replay"},
+    {"id":"export","name":"交付裁切清单","entry":"GET /api/documents/{id}/releases/{version}/csv","steps":["加载并复算验证对应封存","用固定列序列化逐片结果"],"module_ids":["http","archive","storage","delivery"],"success":"相同版反复下载所得字节一致","failure":"未封存版本不能下载","verification":"python3 -B -m tools.smoke --through export"}
+  ]
+}

@@ -1,0 +1,10 @@
+[
+  ["rules", {"id":"PB-1","thickness_gap":18,"ph_gap":5,"color_gap":35,"hours":[0,24],"drift":20,"sample_edge":5}],
+  ["documents", {"id":"FOL-07","title":"潮汐观测稿 · 第七叶","width":120,"height":90,"rule":"PB-1"}],
+  ["lots", {"id":"KOZO-4","label":"楮皮试制 · 第四批"}],
+  ["sheets", {"id":"KOZO-4A","lot":"KOZO-4","width":110,"height":85,"stock":{"thickness":90,"ph":69,"grain":"y"},"faces":{"front":{"condition":"D50","lab":{"l":771,"a":32,"b":147}},"back":{"condition":"D65","lab":{"l":740,"a":20,"b":130}}}}],
+  ["sheets", {"id":"KOZO-4B","lot":"KOZO-4","width":100,"height":75,"stock":{"thickness":95,"ph":70,"grain":"x"},"faces":{"front":{"condition":"D50","lab":{"l":765,"a":33,"b":145}},"back":{"condition":"D50","lab":{"l":700,"a":20,"b":130}}}}],
+  ["documents/FOL-07/zone", {"expected":0,"data":{"id":"Z1","label":"右下阶形缺口","outline":[[66,55],[104,55],[104,85],[90,85],[90,71],[66,71]],"stock":{"thickness":94,"ph":70,"grain":"x"},"surface":{"condition":"D50","lab":{"l":770,"a":30,"b":150}}}}],
+  ["documents/FOL-07/trial", {"expected":1,"zone":"Z1","data":{"id":"T1","selection":{"sheet":"KOZO-4A","face":"front","turn":90},"cut":[4,5,12,13]}}],
+  ["documents/FOL-07/observe", {"expected":2,"zone":"Z1","data":{"id":"T1","observation":{"hour":0,"drift":3,"lifting":false,"note":"贴合平整"}}}]
+]

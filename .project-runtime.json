@@ -1,0 +1,21 @@
+{
+  "language":"Python 3.11+ / JavaScript ES modules / HTML / CSS",
+  "project_shape":"fullstack",
+  "source_extensions":[".py",".js",".html",".css"],
+  "build_command":"python3 -B -m tools.build",
+  "testing":"deferred",
+  "workflow_checks":[
+    {"workflow_id":"rules","command":"python3 -B -m tools.smoke --through rules"},
+    {"workflow_id":"zone","command":"python3 -B -m tools.smoke --through zone"},
+    {"workflow_id":"stock","command":"python3 -B -m tools.smoke --through stock"},
+    {"workflow_id":"preview","command":"python3 -B -m tools.smoke --through preview"},
+    {"workflow_id":"trial","command":"python3 -B -m tools.smoke --through trial"},
+    {"workflow_id":"observe","command":"python3 -B -m tools.smoke --through observe"},
+    {"workflow_id":"patch","command":"python3 -B -m tools.smoke --through patch"},
+    {"workflow_id":"finish","command":"python3 -B -m tools.smoke --through finish"},
+    {"workflow_id":"seal","command":"python3 -B -m tools.smoke --through seal"},
+    {"workflow_id":"reopen","command":"python3 -B -m tools.smoke --through reopen"},
+    {"workflow_id":"replay","command":"python3 -B -m tools.smoke --through replay"},
+    {"workflow_id":"export","command":"python3 -B -m tools.smoke --through export"}
+  ]
+}

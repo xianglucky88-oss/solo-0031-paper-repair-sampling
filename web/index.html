@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>纸样修复批签台</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/bench.css">
+  <script type="module" src="/js/app.js"></script>
+</head>
+<body>
+  <header><span class="stamp" aria-hidden="true">紙</span><div><p class="eyebrow">纸件修复 / 批次记录</p><h1>纸样修复批签台</h1></div></header>
+  <main>
+    <nav aria-label="工作区">
+      <button type="button" data-pane="bench" aria-pressed="true">修复现场</button>
+      <button type="button" data-pane="catalog" aria-pressed="false">基础登记</button>
+      <button type="button" data-pane="release" aria-pressed="false">封存交付</button>
+    </nav>
+    <div class="toolbar" id="context"></div>
+    <p id="status" role="status" aria-atomic="true"></p>
+    <section id="pane" aria-label="当前工作区"></section>
+    <noscript>此工作台需要启用 JavaScript。</noscript>
+  </main>
+</body>
+</html>
