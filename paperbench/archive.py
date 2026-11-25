@@ -23,7 +23,33 @@ def seal(db, doc, body):
             key = trial['selection']['sheet']
             if key not in sheets:
                 sheets[key] = records.get(db, 'sheet', key)
+    # Include the immutable ancestor registrations so an offline verifier can
+    # resolve narrow-page coordinates back to the original sheet number.
+    for key in list(sheets):
+        current = sheets[key]
+        parent_id = current.get('lineage', {}).get('parent') or current.get('parent')
+        while parent_id and parent_id not in sheets:
+            parent = records.get(db, 'sheet', parent_id)
+            sheets[parent_id] = parent
+            parent_id = parent.get('lineage', {}).get('parent') or parent.get('parent')
     inputs = {'document': doc, 'version': expected, 'zones': zones, 'sheets': sheets}
+    lineages = {key: sheet['lineage'] for key, sheet in sheets.items() if sheet.get('lineage')}
+    if lineages:
+        inputs['lineages'] = lineages
+        split_records = []
+        seen = set()
+        for sheet in sheets.values():
+            parent_id = sheet.get('lineage', {}).get('parent')
+            while parent_id and parent_id not in seen:
+                seen.add(parent_id)
+                split_record = records.find(db, 'split', parent_id)
+                if split_record:
+                    split_records.append(split_record)
+                parent = records.find(db, 'sheet', parent_id)
+                parent_id = parent.get('lineage', {}).get('parent') if parent else None
+        if split_records:
+            inputs['splits'] = split_records
+            inputs['split_map'] = {row['id']: row for row in split_records}
     payload = {'format': 1, 'inputs': inputs, 'manifest': replay.reconstruct(inputs)}
     release = {**payload, 'sha256': digest(payload)}
     records.put(db, 'release', str(expected), release, doc['id'])

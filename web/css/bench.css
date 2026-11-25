@@ -8,6 +8,7 @@ figcaption { display:grid; gap:.15rem; margin-bottom:.5rem; overflow-wrap:anywhe
 .diagram .zone.done { fill:#cce2ce; stroke:#3e694b; }
 .diagram .patch { fill:#80baae; stroke:#175647; }
 .diagram .sample { fill:#eec295; stroke:#9e482c; }
+.diagram .inherited { fill-opacity:.38; stroke-dasharray:5 4; }
 .diagram .active { stroke-width:2.4; }
 .diagram rect,.diagram polygon { vector-effect:non-scaling-stroke; }
 .diagram text { text-anchor:middle; dominant-baseline:central; fill:#192b28; pointer-events:none; }

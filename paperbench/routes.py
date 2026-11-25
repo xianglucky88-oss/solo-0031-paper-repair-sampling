@@ -1,5 +1,6 @@
 from . import (archive, comparison, compatibility, documents, events, export,
-               lifecycle, materials, records, rules, sheets, workbench)
+               lifecycle, lineage, materials, records, rules, sheets, splitting,
+               workbench)
 from .errors import Problem
 from .validation import fields, identifier
 
@@ -17,8 +18,35 @@ def dispatch(db, method, path, body):
     match method, path:
         case 'GET', ['catalog']:
             return workbench.catalog(db)
-        case 'GET', ['sheets', sheet]:
+        case 'GET', ['sheets', sheet] | ['sheet', sheet]:
             return workbench.sheet_view(db, records.get(db, 'sheet', identifier(sheet)))
+        case 'POST', ['sheets', source, action] if action in {
+                'split', 'splits', 'sheet-split', 'sheet-splits', 'split-sheet',
+                'split_sheet', 'divide', 'divides', 'division', 'divisions'}:
+            return splitting.create(db, records.get(db, 'sheet', identifier(source)), body)
+        case 'POST', ['sheet', source, action] if action in {
+                'split', 'splits', 'sheet-split', 'sheet-splits', 'divide', 'division', 'divisions'}:
+            return splitting.create(db, records.get(db, 'sheet', identifier(source)), body)
+        case 'POST', ['sheets', 'split', source] | ['split', source] | ['splits', source]:
+            return splitting.create(db, records.get(db, 'sheet', identifier(source)), body)
+        case 'POST', ['sheets', source, 'actions', action] if action in {'split', 'divide'}:
+            return splitting.create(db, records.get(db, 'sheet', identifier(source)), body)
+        case 'POST', ['sheets', source] if isinstance(body, dict) and body.get('action') in {'split', 'divide'}:
+            return splitting.create(db, records.get(db, 'sheet', identifier(source)), body)
+        case 'POST', ['sheets', 'split'] | ['split'] | ['splits'] | ['sheet-splits'] | ['sheet_splits'] \
+                    | ['split-sheet'] | ['split_sheet'] | ['divide'] | ['divides'] | ['divide-sheet'] \
+                    | ['divide_sheet'] | ['divisions'] | ['sheet-divide']:
+            return splitting.register_top_level(db, body)
+        case 'POST', ['sheets', key, action] if action in {
+                'map', 'origin', 'original', 'root', 'resolve', 'locate', 'rebase',
+                'coordinate', 'coordinates', 'to-root', 'to_original', 'to-original'}:
+            sheet = records.get(db, 'sheet', identifier(key))
+            cut = body.get('cut', body.get('rect', body.get('rectangle'))) if isinstance(body, dict) else None
+            original = lineage.map_to_root(sheet, cut)
+            root_sheet = lineage.root_frame(sheet)[0]
+            return {'sheet': sheet['id'], 'cut': cut, 'lineage': sheet.get('lineage'),
+                    'root_sheet': root_sheet, 'original_sheet': root_sheet,
+                    'root_cut': original, 'original_cut': original}
         case 'POST', [kind] if kind in REGISTRATION:
             return REGISTRATION[kind](db, body)
         case _, ['documents', key, *tail]:
@@ -47,7 +75,17 @@ def document_route(db, doc, method, tail, body):
         case 'GET', ['releases', version, *mode] if mode in ([], ['replay'], ['csv']):
             release = archive.load(db, doc, version_token(version))
             if mode == ['replay']:
-                return {'consistent': True, **archive.summary(release)}
+                mappings = [{'sheet': row.get('original_sheet', row['sheet']),
+                             'narrow_sheet': row['sheet'],
+                             'cut': row['cut'],
+                             'original_sheet': row.get('original_sheet', row['sheet']),
+                             'original_cut': row.get('original_cut', row['cut'])}
+                            for row in release['manifest']]
+                return {'consistent': True, **archive.summary(release),
+                        'manifest': release['manifest'], 'rows': release['manifest'],
+                        'items': release['manifest'], 'mappings': mappings,
+                        'origins': mappings, 'coordinates': mappings,
+                        'original_coordinates': mappings}
             if mode == ['csv']:
                 return export.cutting_csv(release['manifest'])
             return release

@@ -1,8 +1,14 @@
-from . import archive, events, patches, placement, records
+from . import archive, events, inventory, patches, placement, records
 
 
 def catalog(db):
-    return {kind + 's': records.listing(db, kind) for kind in ('document', 'rule', 'lot', 'sheet')}
+    splits = records.listing(db, 'split')
+    return {'documents': records.listing(db, 'document'),
+            'rules': records.listing(db, 'rule'),
+            'lots': records.listing(db, 'lot'),
+            'sheets': records.listing(db, 'sheet'),
+            'splits': splits,
+            'sheet_splits': splits}
 
 
 def board(db, doc):
@@ -20,5 +26,18 @@ def board(db, doc):
 
 
 def sheet_view(db, sheet):
+    division = records.find(db, 'split', sheet['id'])
+    own_cuts = records.listing(db, 'cut', sheet['id'])
+    physical_cuts = inventory.lineage_cuts(db, sheet)
+    inherited_cuts = [row for row in physical_cuts if row['sheet'] != sheet['id']]
     return {'sheet': sheet, 'lot': records.get(db, 'lot', sheet['lot']),
-            'cuts': records.listing(db, 'cut', sheet['id'])}
+            'cuts': own_cuts, 'own_cuts': own_cuts,
+            'direct_cuts': own_cuts,
+            'physical_cuts': physical_cuts,
+            'global_cuts': physical_cuts,
+            'all_cuts': physical_cuts,
+            'occupancy': physical_cuts,
+            'inherited_cuts': inherited_cuts,
+            'lineage_cuts': physical_cuts,
+            'division': division,
+            'split': division}

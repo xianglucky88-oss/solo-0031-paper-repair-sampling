@@ -3,10 +3,10 @@
   "modules":[
     {"id":"http","paths":["paperbench/httpd.py","paperbench/routes.py","paperbench/__main__.py"],"responsibility":"本机 HTTP 路由及请求事务"},
     {"id":"storage","paths":["paperbench/database.py","paperbench/schema.py","paperbench/records.py","paperbench/codec.py"],"responsibility":"提供 SQLite 原子事务和规范记录"},
-    {"id":"catalog","paths":["paperbench/rules.py","paperbench/documents.py","paperbench/materials.py","paperbench/sheets.py"],"responsibility":"登记不可改写的工作输入及批次停用"},
+    {"id":"catalog","paths":["paperbench/rules.py","paperbench/documents.py","paperbench/materials.py","paperbench/sheets.py","paperbench/splitting.py","paperbench/lineage.py"],"responsibility":"登记不可改写的工作输入、批次停用和纸页分张"},
     {"id":"geometry","paths":["paperbench/outlines.py","paperbench/rectangles.py","paperbench/placement.py","paperbench/zones.py"],"responsibility":"验证轮廓、贴放位置和覆盖"},
     {"id":"material","paths":["paperbench/measurements.py","paperbench/compatibility.py"],"responsibility":"归一纸面测量和评估材料适配"},
-    {"id":"inventory","paths":["paperbench/inventory.py"],"responsibility":"核对同一实物纸页全局裁切占位"},
+    {"id":"inventory","paths":["paperbench/inventory.py","paperbench/lineage.py"],"responsibility":"核对同一实物纸页及分张谱系的全局裁切占位"},
     {"id":"trials","paths":["paperbench/trials.py","paperbench/observations.py"],"responsibility":"控制试补取样、观察序列和判定"},
     {"id":"patches","paths":["paperbench/patches.py"],"responsibility":"把合格试补和实际切取绑定到补片"},
     {"id":"lifecycle","paths":["paperbench/lifecycle.py","paperbench/events.py"],"responsibility":"控制现场修订生命周期和事件代次"},
@@ -15,7 +15,7 @@
     {"id":"delivery","paths":["paperbench/comparison.py","paperbench/export.py"],"responsibility":"生成版差和固定格式裁切 CSV"},
     {"id":"web","paths":["web/index.html","web/js/app.js","web/js/diagrams.js","web/js/releases.js"],"responsibility":"呈现贴放、裁切、试补和封存现场"}
   ],
-  "complexity":{"mechanisms":["规则和纸页事实冻结","正交轮廓剖分","同测量条件的选面距离","旋转纤维轴与尺寸转换","跨藏品和纸面的裁切占位","逐时点观察门控","藏品现场乐观版本","覆盖后完工和复开修订","内容寻址校验与证据复算","固定列清单和位置级版差"]},
+  "complexity":{"mechanisms":["规则和纸页事实冻结","正交轮廓剖分","同测量条件的选面距离","旋转纤维轴与尺寸转换","跨藏品和纸面的裁切占位","纸页分张谱系与原坐标投影","逐时点观察门控","藏品现场乐观版本","覆盖后完工和复开修订","内容寻址校验与证据复算","固定列清单和位置级版差"]},
   "workflows":[
     {"id":"rules","name":"冻结规则","entry":"POST /api/rules","steps":["验证观察时间顺序和阈值","按规则编号冻结输入"],"module_ids":["http","catalog","storage"],"success":"同版重传不改变规则","failure":"同版不能改写阈值","verification":"python3 -B -m tools.smoke --through rules"},
     {"id":"zone","name":"登记损坏区","entry":"POST /api/documents/{id}/zone","steps":["核对藏品现场版本","验证轮廓和相邻区域，计算损坏面积"],"module_ids":["http","geometry","catalog","lifecycle","storage","workbench"],"success":"登记凹轮廓并返回实际面积","failure":"非法边或重叠区域不接收","verification":"python3 -B -m tools.smoke --through zone"},

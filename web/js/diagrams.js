@@ -46,9 +46,21 @@ export function sheetMap(view, sheetPicker) {
     empty.append(el('h3', '实物纸页裁切图'), el('p', '尚未登记纸页', 'dim'));
     return empty;
   }
-  const {sheet, lot, cuts} = view;
+  const {sheet, lot, cuts, physical_cuts: physicalCuts} = view;
+  const allCuts = physicalCuts || cuts;
+  const inside = ([x, y, r, b]) => x < sheet.width && r > 0 && y < sheet.height && b > 0;
+  const shownCuts = allCuts.map(cut => ({...cut, draw: cut.view_cut || cut.cut}))
+    .filter(cut => inside(cut.draw));
   return figure(`裁切台 · ${sheet.id}`, [sheet.width, sheet.height],
-    `${sheet.width} × ${sheet.height} mm · ${lot.active ? '启用' : '已停用'} · 橙：样片 · 绿：补片`,
-    cuts.map(c => rectangle(c.cut, c.kind === 'trial' ? 'sample' : 'patch', `${c.document} / ${c.id}`)),
-    sheetPicker, list(cuts, c => [`${c.id} · 取纸 (${c.cut.join(', ')})`, `${c.document}/${c.zone} · 第 ${c.revision} 修订`]));
+    `${sheet.width} × ${sheet.height} mm · ${lot.active ? '启用' : '已停用'}` +
+    (sheet.lineage ? ` · 原页 ${sheet.lineage.root_sheet || sheet.lineage.root}` : '') +
+    ' · 橙：样片 · 绿：补片 · 虚线：旧页投影',
+    shownCuts.map(c => rectangle(c.draw,
+      `${c.kind === 'trial' ? 'sample' : 'patch'}${c.sheet && c.sheet !== sheet.id ? ' inherited' : ''}`,
+      `${c.sheet || sheet.id} / ${c.id}`)),
+    sheetPicker,
+    list(shownCuts, c => [`${c.id} · 本页坐标 (${c.draw.join(', ')})`,
+      c.sheet && c.sheet !== sheet.id
+        ? `原编号 ${c.sheet} · 原页坐标 (${(c.root_cut || []).join(', ')})`
+        : `${c.document}/${c.zone} · 第 ${c.revision} 修订`]));
 }
